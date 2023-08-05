@@ -1,0 +1,55 @@
+@import "./reset.css";
+
+:root {
+  --text-color: #1a1a1a;
+  --disabled-text-color: #bbbbbb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100vw;
+  height: 100vh;
+}
+
+button {
+  border: 1px solid var(--text-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+button:disabled {
+  border-color: var(--disabled-text-color);
+  color: var(--disabled-text-color);
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px;
+  column-gap: 8px;
+}
+
+.copyright-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  padding: 16px;
+  column-gap: 4px;
+  user-select: none;
+}
+
+.copyright-wrapper p,
+a {
+  color: var(--text-color);
+}
