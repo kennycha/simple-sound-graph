@@ -42,6 +42,7 @@ const filterChannelData = (channelData: Float32Array) => {
 };
 
 // @TODO 재생시간 이전에는 흰색 이후에는 주황색으로 바뀌도록 구현
+// @TODO SVG 스타일 클래스로 주고 css 파일에서 수정하도록 변경
 const drawVisualizer = (audioBuffer: AudioBuffer) => {
   const filtered = filterChannelData(audioBuffer.getChannelData(0));
   const multiplier = 1 / Math.max(...filtered);
