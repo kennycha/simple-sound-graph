@@ -7,12 +7,22 @@
     <title>Simple Sound Graph</title>
   </head>
   <body>
-    <main>
+    <header>
       <div class="buttons">
-        <button id="loadButton" disabled>load</button>
+        <button id="loadButton" disabled>loading...</button>
         <button id="playButton" disabled>play</button>
       </div>
-      <ol id="tracks"></ol>
+      <div class="track-select-wrapper">
+        <label class="track-select-label" for="trackSelect">Choose a track:</label>
+        <select name="trackSelect" id="trackSelect" class="track-select">
+          <option value="">loading tracks...</option>
+        </select>
+      </div>
+    </header>
+    <main>
+      <div id="player" class="player">
+        <div id="playerPlaceholder" class="player-placeholder"></div>
+      </div>
     </main>
     <footer class="copyright-wrapper">
       <p class="copyright">&copy; kennycha</p>

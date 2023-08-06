@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { Nullable } from "./types";
 
 const BASE_URL = "/simple-sound-graph/assets/sounds/";
 
@@ -13,10 +14,27 @@ const SOUND_FILE_URLS = [
   "08_fill_in.mp3",
   "09_night_away.mp3",
   "10_happy_hype.mp3",
-];
+] as const;
+
+type AudioBufferMapKeys = (typeof SOUND_FILE_URLS)[number];
+
+const audioBufferMap: { [key in AudioBufferMapKeys]: Nullable<AudioBuffer> } = {
+  "01_bad_boy.mp3": null,
+  "02_corruption.mp3": null,
+  "03_easy_boost.mp3": null,
+  "04_core.mp3": null,
+  "05_cut_off.mp3": null,
+  "06_overload.mp3": null,
+  "07_jumping_out.mp3": null,
+  "08_fill_in.mp3": null,
+  "09_night_away.mp3": null,
+  "10_happy_hype.mp3": null,
+};
 
 const VISUALIZER_BLOCK_COUNT = 140;
 
+let currentSourceNodeKey = SOUND_FILE_URLS[0];
+let currentSourceNode: AudioBufferSourceNode | undefined;
 let isInitiated = false;
 let isPlaying = false;
 
@@ -41,6 +59,10 @@ const filterChannelData = (channelData: Float32Array) => {
   return filtered;
 };
 
+const clearVisualizer = () => {
+  d3.select("#player>div.player-graph").remove();
+};
+
 // @TODO 재생시간 이전에는 흰색 이후에는 주황색으로 바뀌도록 구현
 // @TODO SVG 스타일 클래스로 주고 css 파일에서 수정하도록 변경
 const drawVisualizer = (audioBuffer: AudioBuffer) => {
@@ -55,11 +77,11 @@ const drawVisualizer = (audioBuffer: AudioBuffer) => {
   const barWidth = totalBarWidth - barSpacing;
 
   const track = d3
-    .select("#tracks")
-    .append("li")
+    .select("#player")
+    .append("div")
     .attr("width", svgWidth)
     .attr("height", (svgHeight * 3) / 2)
-    .attr("class", "track");
+    .attr("class", "player-graph");
 
   const svg = track
     .append("svg")
@@ -67,16 +89,16 @@ const drawVisualizer = (audioBuffer: AudioBuffer) => {
     .attr("height", svgHeight)
     .style("background-color", "rgb(51, 51, 51)");
 
-  const barChart = svg
+  svg
     .selectAll("rect")
     .data(filteredAndNormalized)
     .enter()
     .append("rect")
-    .attr("y", (d) => (1 - d * 0.9) * svgHeight)
-    .attr("height", (d) => d * 0.9 * svgHeight)
+    .attr("y", (d) => (1 - d * 0.7) * svgHeight)
+    .attr("height", (d) => d * 0.7 * svgHeight)
     .attr("width", barWidth)
     .style("fill", "rgb(255, 84, 0)")
-    .attr("transform", (d, i) => {
+    .attr("transform", (_, i) => {
       const translate = [totalBarWidth * i, 0];
       return `translate(${translate})`;
     });
@@ -87,13 +109,13 @@ const drawVisualizer = (audioBuffer: AudioBuffer) => {
     .attr("height", svgHeight / 2)
     .style("background-color", "rgb(51, 51, 51)");
 
-  const reverseChart = reverseSvg
+  reverseSvg
     .selectAll("rect")
     .data(filteredAndNormalized)
     .enter()
     .append("rect")
     .attr("y", (_) => 0)
-    .attr("height", (d) => (d * 0.9 * svgHeight) / 2)
+    .attr("height", (d) => (d * 0.7 * svgHeight) / 2)
     .attr("width", barWidth)
     .style("fill", "rgb(254, 191, 153)")
     .attr("transform", (_, i) => {
@@ -104,28 +126,55 @@ const drawVisualizer = (audioBuffer: AudioBuffer) => {
 
 const onWindowLoad = async () => {
   const audioContext = new AudioContext();
+  const trackSelect = document.querySelector("#trackSelect") as HTMLSelectElement;
   const loadButton = document.querySelector("#loadButton") as HTMLButtonElement;
-  loadButton.disabled = false;
-
   const playButton = document.querySelector("#playButton") as HTMLButtonElement;
+  const playerPlaceholder = document.querySelector("#playerPlaceholder") as HTMLDivElement;
 
-  const audioBuffers: AudioBuffer[] = [];
   for (const url of SOUND_FILE_URLS) {
     const audioBuffer = await getAudioBuffer(audioContext, `${BASE_URL}${url}`);
-    drawVisualizer(audioBuffer);
-    audioBuffers.push(audioBuffer);
+    audioBufferMap[url] = audioBuffer;
   }
 
-  // @TODO 선택한 트랙을 재생 + 이미지를 그리도록 변경
-  const sourceNode = new AudioBufferSourceNode(audioContext, { buffer: audioBuffers[0], loop: true });
-  const sourceGainNode = new GainNode(audioContext);
-  sourceNode.connect(sourceGainNode);
-  sourceGainNode.connect(audioContext.destination);
+  loadButton.innerText = "allow";
+  loadButton.disabled = false;
+
+  SOUND_FILE_URLS.forEach((url) => {
+    const option = new Option(url, url);
+    trackSelect.appendChild(option);
+  });
+  trackSelect.remove(0);
+
+  playerPlaceholder.classList.add("hidden");
+
+  const currentAudioBuffer = audioBufferMap[currentSourceNodeKey];
+  if (!currentAudioBuffer) return;
+  drawVisualizer(currentAudioBuffer);
 
   const onLoadButtonClick = () => {
     playButton.disabled = false;
     audioContext.resume();
     loadButton.disabled = true;
+  };
+
+  const onSelectChange = async (event: Event) => {
+    const select = event.target as HTMLSelectElement;
+    const selectedOption = select.selectedOptions[0];
+    const selectedOptionValue = selectedOption.value as any;
+    if (currentSourceNodeKey === selectedOptionValue) return;
+
+    currentSourceNodeKey = selectedOptionValue;
+    const currentAudioBuffer = audioBufferMap[currentSourceNodeKey];
+    if (!currentAudioBuffer) return;
+
+    clearVisualizer();
+    drawVisualizer(currentAudioBuffer);
+    if (currentSourceNode) {
+      currentSourceNode.stop();
+    }
+    playButton.innerText = "play";
+    isPlaying = false;
+    isInitiated = false;
   };
 
   const onPlayButtonClick = () => {
@@ -137,7 +186,14 @@ const onWindowLoad = async () => {
       if (isInitiated) {
         audioContext.resume();
       } else {
-        sourceNode.start(audioContext.currentTime);
+        const currentAudioBuffer = audioBufferMap[currentSourceNodeKey];
+        if (!currentAudioBuffer) return;
+
+        currentSourceNode = new AudioBufferSourceNode(audioContext, { buffer: currentAudioBuffer, loop: true });
+        const sourceGainNode = new GainNode(audioContext);
+        currentSourceNode.connect(sourceGainNode);
+        sourceGainNode.connect(audioContext.destination);
+        currentSourceNode.start(audioContext.currentTime);
         isInitiated = true;
       }
       playButton.innerText = "pause";
@@ -145,6 +201,7 @@ const onWindowLoad = async () => {
     }
   };
 
+  trackSelect.addEventListener("change", onSelectChange);
   loadButton.addEventListener("click", onLoadButtonClick);
   playButton.addEventListener("click", onPlayButtonClick);
 };
